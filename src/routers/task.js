@@ -39,8 +39,8 @@ router.get('/tasks/:id',async(req,res)=>{
 
 router.patch('/tasks/:id',async(req,res)=>{
     const updatesAllowed = ['description','completed'];
-    const currentKeys = Object.keys(req.body);
-    const isValidUpdate = currentKeys.every((update)=>{
+    const updates = Object.keys(req.body);
+    const isValidUpdate = updates.every((update)=>{
         updatesAllowed.includes(update);
     })
 
@@ -50,10 +50,12 @@ router.patch('/tasks/:id',async(req,res)=>{
     // }
 
     try{
-        const task = await Task.findByIdAndUpdate({ _id:req.params.id },req.body,{ new:true, runValidators:true })
+        const task = await Task.findById({_id:req.params.id});
         if(!task){
             throw new Error("No such task exists!")
         } else {
+            updates.forEach((update)=> task[update] = req.body[update]);
+            await task.save();
             res.send(task);
         }
     }
