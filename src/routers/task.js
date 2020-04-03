@@ -1,11 +1,15 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Task = require('../models/task');
+const auth = require('../middlewares/auth');
 const router = new express.Router();
 
-router.post('/tasks',async(req,res)=>{
+router.post('/tasks', auth, async(req,res)=>{
     try{
-        const task =  new Task(req.body);
+        const task =  new Task({
+            ...req.body,
+            owner:req.user._id
+        });
         await task.save();
         res.send(task);
     }
@@ -15,20 +19,27 @@ router.post('/tasks',async(req,res)=>{
     } 
 })
 
-router.get('/tasks',async(req,res)=>{
+router.get('/tasks', auth, async(req,res)=>{
     try{
-        const result = await Task.find({});
-        res.send(result)
+        const result = await Task.find({owner:req.user._id});
+        if(result.length == 0){
+            res.send("No more task exists");
+        } else{
+            res.send(result);
+        }
     }
     catch(e){
         res.send(e);
     }
 })
 
-router.get('/tasks/:id',async(req,res)=>{
+router.get('/tasks/:id', auth, async(req,res)=>{
     const _id = req.params.id;
     try{
-        const result = await Task.find({_id});
+        const result = await Task.findOne({_id, owner:req.user._id});
+        if(!result){
+            throw new Error("Invalid request");
+        }
         res.send(result);
     }
     catch(e){
@@ -37,7 +48,7 @@ router.get('/tasks/:id',async(req,res)=>{
     }
 })
 
-router.patch('/tasks/:id',async(req,res)=>{
+router.patch('/tasks/:id', auth, async(req,res)=>{
     const updatesAllowed = ['description','completed'];
     const updates = Object.keys(req.body);
     const isValidUpdate = updates.every((update)=>{
@@ -50,7 +61,7 @@ router.patch('/tasks/:id',async(req,res)=>{
     // }
 
     try{
-        const task = await Task.findById({_id:req.params.id});
+        const task = await Task.findOne({_id:req.params.id,owner:req.user._id});
         if(!task){
             throw new Error("No such task exists!")
         } else {
@@ -65,12 +76,13 @@ router.patch('/tasks/:id',async(req,res)=>{
     }
 })
 
-router.delete('/tasks/:id',async(req,res)=>{
+router.delete('/tasks/:id', auth, async(req,res)=>{
     try{
-        const task = await Task.findByIdAndDelete({ _id:req.params.id })
+        const task = await Task.findOne({ _id:req.params.id, owner:req.user._id })
         if(!task){
             throw new Error("No such task found")
         } else { 
+            await task.remove();
             res.send(task);
         }
     }

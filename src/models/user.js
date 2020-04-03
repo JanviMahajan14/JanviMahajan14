@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const Task = require('../models/task');
 
 mongoose.connect('mongodb://localhost:12345/task-manager-api', {
     useNewUrlParser: true,
@@ -65,6 +66,12 @@ userSchema.pre('save', async function(next) {
     if(this.isModified('password')){
         this.password = await bcrypt.hash(this.password,8);
     }
+    next();
+})
+
+userSchema.pre('remove', async function(next){
+    const tasks = await Task.find({owner:this._id});
+    tasks.forEach((task)=>task.remove());
     next();
 })
 
