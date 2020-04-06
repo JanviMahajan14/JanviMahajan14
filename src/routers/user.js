@@ -2,6 +2,8 @@ const express = require('express');
 const User = require('../models/user');
 const router = new express.Router();
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const sharp = require('sharp');
 const auth = require('../middlewares/auth');
 
 router.post('/users',async(req,res)=>{
@@ -95,6 +97,52 @@ router.delete('/users/me', auth, async(req,res)=>{
         res.send(req.user);
     }
     catch(e){
+        res.statusCode=400;
+        res.send(e);
+    }
+})
+
+const upload = multer({
+    // dest:'avatar/',
+    limits:{
+        fileSize:1000000
+    },
+    // file.originalname.endsWith('.pdf')
+    fileFilter(req,file,cb){
+        if(!file.originalname.match(/\.(jpg|jpeg|png)$/)){
+            return cb(new Error("Please upload a img file"));
+        }
+        return cb(undefined,true);
+    }
+})
+
+router.post('/users/me/avatar',auth,upload.single('avatar'),async(req,res)=>{
+    const buffer = await sharp(req.file.buffer).resize({width:250, height:250}).png().toBuffer();
+    // req.user.avatar = req.file.buffer;
+    req.user.avatar = buffer;
+    await req.user.save();
+    res.send();
+},(error,req,res,next)=>{
+    res.statusCode=400;
+    res.send(error);
+})
+
+router.delete('/users/me/avatar',auth,async(req,res,next)=>{
+    req.user.avatar = undefined;
+    await req.user.save();
+    res.send();
+})
+
+// Set up a router as a url for fetching image
+router.get('/users/:id/avatar',async(req,res)=>{
+    try{
+        const user = await User.findById(req.params.id);
+        if(!user){
+            throw new Error('There is no such user');
+        }
+        res.set('Content-Type','image/png');
+        res.send(user.avatar);
+    } catch(e){
         res.statusCode=400;
         res.send(e);
     }

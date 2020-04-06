@@ -1,3 +1,3 @@
-## Task Manger App
+## Task Manager App
 
-# Built with node, express.js, mongodb
+### Built with node, express.js, mongodb
